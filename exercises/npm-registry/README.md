@@ -71,3 +71,92 @@ Good luck, and enjoy!
 - Consider the quality and structure of your codebase; is it maintainable?
 
 - Consider production readiness (to some extent) and is it safe to deploy changes?
+
+
+Rules:
+
+1. for a given dependency, what are the operators
+  - Inclusive OR operator (`"^3.0.0 || ^4.0.0"`)
+  - Major releases: * or x
+  - Minor releases: 1 or 1.x or ^1.0.4
+  - Patch releases: 1.0 or 1.0.x or ~1.0.4
+  - Pre-release: 1.0.4-alpha,beta,rc
+    - **NOTE** Pre release build rules are rarely followed in npm packaging
+      - example: `react-is` library
+    - pre-release build: 1.0.4-alpha.1, 1.0.4-alpha.xyzabc, 1.0.4-alpha.001bcc67
+    - will evaluate known allowed prerelease alpha, beta, rc, not post values due to consistency in evaluation rules on npm
+
+2. Comparison levels:
+  - Major
+  - Minor
+  - Patch
+  - Prerelease:
+    - rc
+    - beta
+    - alpha
+
+
+2. Query the desired package based on the rule, https://registry.npmjs.org/[package-name]
+    - Read the "versions" key, select the highest allowed match based on rules
+    - read "dependencies" key there, repeat the process for each entry there
+      - **TODO** create optimization to hold a specific subtree in a lookup locally to avoid extra generation cost for "seen evaluated trees" (i.e. "object-assign-^4.1.1")
+
+Version comparison checks:
+  major.minor.patch-prerelease < major.minor.patch
+prerelease comparisons:
+  alpha < beta < rc
+
+## Expected change
+New tree-based result would look from the command:
+
+- `curl -s http://localhost:3000/package/react/16.13.0 | jq .`
+
+```json
+{
+  "name": "react",
+  "version": "16.13.0",
+  "dependencies": {
+    "loose-envify":  {
+      "target": "^1.1.0",
+      "version": "1.4.0",
+      "dependencies": {
+        "js-tokens": {
+          "target": "^3.0.0 || ^4.0.0",
+          "version": "4.0.0",
+          "dependencies": {},
+      },
+    },
+    "object-assign": {
+      "target": "^4.1.1",
+      "version": "4.1.1",
+      "dependencies": {},
+    },
+    "prop-types": {
+      "target": "^15.6.2",
+      "version": "15.7.2",
+      "dependencies": {
+        "loose-envify":  {
+          "target": "^1.1.0",
+          "version": "1.4.0",
+          "dependencies": {
+            "js-tokens": {
+              "target": "^3.0.0 || ^4.0.0",
+              "version": "4.0.0",
+              "dependencies": {}
+          },
+        },
+        "object-assign": {
+          "target": "^4.1.1",
+          "version": "4.1.1",
+          "dependencies": {}
+        },
+        "react-is": {
+          "target": "^16.8.1",
+          "version": "16.8.6",
+          "dependencies": {}
+        }
+      },
+    },
+  }
+}
+```
