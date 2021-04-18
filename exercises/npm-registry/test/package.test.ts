@@ -4,45 +4,89 @@ import { Server } from 'http';
 import { createApp } from '../src/app';
 import { evaluateRule, compareVersions, isVersionAcceptable } from '../src/package';
 
-// describe('/package/:name/:version endpoint', () => {
-//   let server: Server;
-//   let port: number;
+describe('/package/:name/:version endpoint', () => {
+  let server: Server;
+  let port: number;
 
-//   beforeAll(async (done) => {
-//     port = await getPort();
-//     server = createApp().listen(port, done);
-//   });
+  beforeAll(async (done) => {
+    port = await getPort();
+    server = createApp().listen(port, done);
+  });
 
-//   afterAll((done) => {
-//     server.close(done);
-//   });
+  afterAll((done) => {
+    server.close(done);
+  });
 
-//   it('responds', async () => {
-//     const packageName = 'react';
-//     const packageVersion = '16.13.0';
+  it('responds js-tokens', async () => {
+    const packageName = 'js-tokens';
+    const packageVersion = '4.0.0';
 
-//     const res: any = await got(
-//       `http://localhost:${port}/package/${packageName}/${packageVersion}`,
-//     ).json();
+    const res: any = await got(
+      `http://localhost:${port}/package/${packageName}/${packageVersion}`,
+    ).json();
 
-//     expect(res.name).toEqual(packageName);
-//   });
+    expect(res.name).toEqual(packageName);
+  });
 
-//   it('returns dependencies', async () => {
-//     const packageName = 'react';
-//     const packageVersion = '16.13.0';
+  it('returns advanced dependencies', async () => {
+    const packageName = 'react';
+    const packageVersion = '16.13.0';
 
-//     const res: any = await got(
-//       `http://localhost:${port}/package/${packageName}/${packageVersion}`,
-//     ).json();
+    const res: any = await got(
+      `http://localhost:${port}/package/${packageName}/${packageVersion}`,
+    ).json();
 
-//     expect(res.dependencies).toEqual({
-//       'loose-envify': '^1.1.0',
-//       'object-assign': '^4.1.1',
-//       'prop-types': '^15.6.2',
-//     });
-//   });
-// });
+    expect(res).toEqual({
+        "name": "react",
+        "version": "16.13.0",
+        "dependencies": {
+          "loose-envify":  {
+            "target": "^1.1.0",
+            "version": "1.4.0",
+            "dependencies": {
+              "js-tokens": {
+                "target": "^3.0.0 || ^4.0.0",
+                "version": "4.0.0",
+                "dependencies": {},
+              }
+            }
+          },
+          "object-assign": {
+            "target": "^4.1.1",
+            "version": "4.1.1",
+            "dependencies": {},
+          },
+          "prop-types": {
+            "target": "^15.6.2",
+            "version": "15.7.2",
+            "dependencies": {
+              "loose-envify":  {
+                "target": "^1.1.0",
+                "version": "1.4.0",
+                "dependencies": {
+                  "js-tokens": {
+                    "target": "^3.0.0 || ^4.0.0",
+                    "version": "4.0.0",
+                    "dependencies": {}
+                  }
+                }
+              },
+              "object-assign": {
+                "target": "^4.1.1",
+                "version": "4.1.1",
+                "dependencies": {}
+              },
+              "react-is": {
+                "target": "^16.8.1",
+                "version": "16.8.6",
+                "dependencies": {}
+              }
+            },
+          },
+        }
+    });
+  });
+});
 
 describe ('compareVersions function', () => {
   it('returns the release version instead of pre-release',  () => {

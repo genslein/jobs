@@ -48,6 +48,8 @@ export const constructDependencyTree = function (dependencies) {
       "dependencies": {}
     }
 
+    console.log("Key: " + key + ", Rule: " + value + ", Target Version: " + target);
+
     // Possibility to optimize via a lookup for seen rules/versions here
     // not every subtree will have dependencies
     if (possibleVersions[target].dependencies != null &&
@@ -60,11 +62,12 @@ export const constructDependencyTree = function (dependencies) {
   return dependencies;
 }
 
-// Handling additional checks such as || or && in defined rule
+// Handling additional checks such as || in defined rule
 // Will need some reusable capabilities
 // Difficulty in non-standard version evaluation, sorting not available either
-// react-is Example: "16.4.0-alpha.3174632",
-//                   "16.4.0-alpha.0911da3"
+// react-is package Example:
+//     "16.4.0-alpha.3174632" vs.
+//     "16.4.0-alpha.0911da3"
 export const evaluateRule = function (rule, npmPackage) {
   let versions = npmPackage.versions
   let matcher = "";
@@ -81,9 +84,12 @@ export const evaluateRule = function (rule, npmPackage) {
   if (rule.includes("||")) {
     let firstOrArg = rule.split("||")[0].trim();
     let secondOrArg = rule.split("||")[1].trim();
+    let firstArr = firstOrArg.split(".");
+    let secondArr = firstOrArg.split(".");
 
     // assumes valid numeric in the first position in NPM
-    if (parseInt(firstOrArg.split(/~\^./)[0]) > parseInt(secondOrArg.split(/~\^./)[0])) {
+    // comparing major only
+    if (parseInt(firstArr[0].replace(/[~\^]/g, "")) > parseInt(secondArr[0].replace(/[~\^]/g, ""))) {
       matcher = firstOrArg;
     } else {
       matcher = secondOrArg;
@@ -147,11 +153,11 @@ export const isVersionAcceptable = function (matcher, version) {
     return matcher == version;
   }
 
-  console.log("Rule: " + rule + ", Operator: " + operator + ", Position: " + position);
+  // console.log("Rule: " + rule + ", Operator: " + operator + ", Position: " + position);
 
   for (let i = 0; i <= position; i++) {
-    console.log("Current part: " + versionParts[i]);
-    console.log("Matcher value: " + matcherParts[i]);
+    // console.log("Current part: " + versionParts[i]);
+    // console.log("Matcher value: " + matcherParts[i]);
 
     if (i == position) {
       if (operator == "gte") {
@@ -162,7 +168,7 @@ export const isVersionAcceptable = function (matcher, version) {
     } else if (parseInt(matcherParts[i]) > parseInt(versionParts[i])) {
       return false;
     } else {
-      console.log("vaild version part, continuing: " + versionParts[i]);
+      // console.log("vaild version part, continuing: " + versionParts[i]);
     }
   }
 
