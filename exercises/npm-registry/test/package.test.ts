@@ -2,7 +2,7 @@ import * as getPort from 'get-port';
 import got from 'got';
 import { Server } from 'http';
 import { createApp } from '../src/app';
-import { evaluateRule, compareVersions } from '../src/package';
+import { evaluateRule, compareVersions, isVersionAcceptable } from '../src/package';
 
 // describe('/package/:name/:version endpoint', () => {
 //   let server: Server;
@@ -107,5 +107,76 @@ describe ('compareVersions function', () => {
     let release = "17.4.0-alpha.0";
 
     expect(compareVersions(release, preRelease)).toEqual(release);
+  });
+});
+
+describe('isVersionAcceptable function', () => {
+  it('returns true for equal versions',  () => {
+    let matcher = "16.4.0";
+
+    expect(isVersionAcceptable(matcher, matcher)).toEqual(true);
+  });
+
+  it('returns false for unequal versions',  () => {
+    let preRelease = "16.4.0-alpha.3174632";
+    let matcher = "16.4.0";
+
+    expect(isVersionAcceptable(matcher, preRelease)).toEqual(false);
+  });
+
+  it('returns false for lower major versions',  () => {
+    let matcher = "^16.5.0";
+    let version = "15.6.0";
+
+    expect(isVersionAcceptable(matcher, version)).toEqual(false);
+  });
+
+  it('returns false for lower minor versions',  () => {
+    let matcher = "~16.6.0";
+    let version = "16.5.2";
+
+    expect(isVersionAcceptable(matcher, version)).toEqual(false);
+  });
+
+  it('returns true for gte patch versions',  () => {
+    let matcher = "~16.4.2";
+    let version = "16.4.5";
+
+    expect(isVersionAcceptable(matcher, version)).toEqual(true);
+  });
+
+  it('returns true for gte minor versions',  () => {
+    let matcher = "^16.4.0";
+    let version = "16.6.5";
+
+    expect(isVersionAcceptable(matcher, version)).toEqual(true);
+  });
+
+  it('returns true for any minor versions with wildcard x',  () => {
+    let matcher = "16.x.0";
+    let version = "16.6.5";
+
+    expect(isVersionAcceptable(matcher, version)).toEqual(true);
+  });
+
+  it('returns true for any minor versions with wildcard *',  () => {
+    let matcher = "16.*.0";
+    let version = "16.6.5";
+
+    expect(isVersionAcceptable(matcher, version)).toEqual(true);
+  });
+
+  it('returns true for any patch versions with wildcard *',  () => {
+    let matcher = "16.6.*";
+    let version = "16.6.5";
+
+    expect(isVersionAcceptable(matcher, version)).toEqual(true);
+  });
+
+  it('returns the true for any patch versions with wildcard x',  () => {
+    let matcher = "16.6.x";
+    let version = "16.6.5";
+
+    expect(isVersionAcceptable(matcher, version)).toEqual(true);
   });
 });

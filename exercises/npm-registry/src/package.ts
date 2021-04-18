@@ -43,14 +43,16 @@ export const constructDependencyTree = function (dependencies) {
     target = evaluateRule(value, npmPackage);
 
     dependencies[key] = {
-      "rule": key,
+      "rule": value,
       "target": target,
       "dependencies": {}
     }
 
     // Possibility to optimize via a lookup for seen rules/versions here
+    // not every subtree will have dependencies
     if (possibleVersions[target].dependencies != null &&
-      possibleVersions[target].dependencies != NaN) {
+      possibleVersions[target].dependencies != NaN &&
+      possibleVersions[target].dependencies != undefined) {
       dependencies[key].dependencies = constructDependencyTree(possibleVersions[target].dependencies);
     }
   }
@@ -64,15 +66,9 @@ export const constructDependencyTree = function (dependencies) {
 // react-is Example: "16.4.0-alpha.3174632",
 //                   "16.4.0-alpha.0911da3"
 export const evaluateRule = function (rule, npmPackage) {
-  const regex = /[0-9]/g;
   let versions = npmPackage.versions
+  let matcher = "";
   let target = "";
-
-  let evaluator;
-  let major = "";
-  let minor = "";
-  let patch = "";
-  let operand = "";
 
   // Removes some cases from logic
   if (rule == "" || rule == "*" || rule == "x") {
@@ -85,24 +81,19 @@ export const evaluateRule = function (rule, npmPackage) {
   if (rule.includes("||")) {
     let firstOrArg = rule.split("||")[0].trim();
     let secondOrArg = rule.split("||")[1].trim();
-    firstOrArg[0].match(regex)
-  }
 
-  // determine major, minor, patch
-  if (rule[0] == '~') {
-
-  } else if (rule[0] == '^') {
-
-  } else if (rule.includes("x") || rule.includes("*")) {
-    // anything after this point
-  } else if (rule == "") {
-    // latest version
+    // assumes valid numeric in the first position in NPM
+    if (parseInt(firstOrArg.split(/~\^./)[0]) > parseInt(secondOrArg.split(/~\^./)[0])) {
+      matcher = firstOrArg;
+    } else {
+      matcher = secondOrArg;
+    }
   } else {
-    // exact match only
+    matcher = rule;
   }
 
   for (let key in versions.keys()) {
-    if (evaluator(key)){
+    if (isVersionAcceptable(matcher, key)){
       if (target == "") {
         target = key;
       } else {
@@ -112,6 +103,71 @@ export const evaluateRule = function (rule, npmPackage) {
   }
 
   return target;
+}
+
+export const isVersionAcceptable = function (matcher, version) {
+  let position = 0;
+  let operator = "any";
+  let rule = matcher;
+  let matcherParts = matcher.split(".");
+  let versionParts = version.split(".");
+  const wildCardRegex = /[x\*]/;
+
+  // any version essentially returns true
+  if (wildCardRegex.test(matcherParts[0])){
+    return true;
+  }
+
+  // minor compare
+  if (matcher[0] == '^') {
+    rule = matcher.substring(1);
+    position = 1;
+    operator = "gte";
+    matcherParts = rule.split(".");
+  } else if (wildCardRegex.test(matcherParts[1])) {
+    position = 1;
+    operator = "gte";
+    rule = matcherParts[0] + ".0.0";
+    matcherParts = [matcherParts[0], "0", "0"];
+  } else if (matcher[0] == '~' ) { // patch compare
+    rule = matcher.substring(1);
+    position = 2;
+    operator = "gte";
+    matcherParts = rule.split(".");
+  } else if (wildCardRegex.test(matcherParts[2])) {
+    position = 2;
+    operator = "gte";
+    rule = matcherParts[0] + "." + matcherParts[1] + ".0";
+    matcherParts = [matcherParts[0], matcherParts[1], "0"];
+  } else {
+    operator = "eq";
+  }
+
+  if (operator == "eq") {
+    return matcher == version;
+  }
+
+  console.log("Rule: " + rule + ", Operator: " + operator + ", Position: " + position);
+
+  for (let i = 0; i <= position; i++) {
+    console.log("Current part: " + versionParts[i]);
+    console.log("Matcher value: " + matcherParts[i]);
+
+    if (i == position) {
+      if (operator == "gte") {
+        return parseInt(versionParts[i]) >= parseInt(matcherParts[i]);
+      } else { // any value works
+        return true;
+      }
+    } else if (parseInt(matcherParts[i]) > parseInt(versionParts[i])) {
+      return false;
+    } else {
+      console.log("vaild version part, continuing: " + versionParts[i]);
+    }
+  }
+
+  // should never get here, but just in case, fail gracefully
+  return false;
 }
 
 // assumes actual versions major, minor, patch are numerics only
