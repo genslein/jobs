@@ -59,6 +59,35 @@ describe ('compareVersions function', () => {
     expect(compareVersions(release, preRelease)).toEqual(release);
   });
 
+  it('returns the higher original major version',  () => {
+    let original = "16.4.1";
+    let release = "15.5.0";
+
+    expect(compareVersions(release, original)).toEqual(original);
+  });
+
+  it('returns the higher original minor version',  () => {
+    let original = "16.4.1";
+    let release = "16.3.2";
+
+    expect(compareVersions(release, original)).toEqual(original);
+  });
+
+  it('returns the higher original patch version',  () => {
+    let original = "16.4.1";
+    let release = "16.4.0-alpha";
+
+    expect(compareVersions(release, original)).toEqual(original);
+  });
+
+
+  it('returns the higher original version not pre-release',  () => {
+    let original = "16.4.1";
+    let release = "16.4.1-alpha";
+
+    expect(compareVersions(release, original)).toEqual(original);
+  });
+
   it('returns the higher patch version',  () => {
     let preRelease = "16.4.0-alpha.3174632";
     let release = "16.4.1-alpha.0";

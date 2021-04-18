@@ -9,10 +9,10 @@ export const getPackage: RequestHandler = async function (req, res, next) {
   const { name, version } = req.params;
 
   try {
-    const dependencies = (await queryNpmSource(name)).versions[version].dependencies;
+    const initialDependencies = (await queryNpmSource(name)).versions[version].dependencies;
 
-    const results = constructDependencyTree(dependencies);
-    return res.status(200).json({ name, version, results });
+    const dependencies = constructDependencyTree(initialDependencies);
+    return res.status(200).json({ name, version, dependencies });
   } catch (error) {
     return next(error);
   }
@@ -60,13 +60,13 @@ export const constructDependencyTree = function (dependencies) {
 
 // Handling additional checks such as || or && in defined rule
 // Will need some reusable capabilities
-// Difficulty in non-standard version evaluation
+// Difficulty in non-standard version evaluation, sorting not available either
 // react-is Example: "16.4.0-alpha.3174632",
 //                   "16.4.0-alpha.0911da3"
 export const evaluateRule = function (rule, npmPackage) {
   const regex = /[0-9]/g;
-  let target;
   let versions = npmPackage.versions
+  let target = "";
 
   let evaluator;
   let major = "";
@@ -101,59 +101,55 @@ export const evaluateRule = function (rule, npmPackage) {
     // exact match only
   }
 
-  // determine pre-release version checks
-  if (rule.split("-")[1].includes("alpha")) {
-
-  } else if (rule.split("-")[1].includes("beta")) {
-
-  } else if (rule.split("-")[1].includes("rc")) {
-
+  for (let key in versions.keys()) {
+    if (evaluator(key)){
+      if (target == "") {
+        target = key;
+      } else {
+        target = compareVersions(key, target);
+      }
+    }
   }
-
-  // for (let key in versions) {
-
-  // }
 
   return target;
 }
 
 // assumes actual versions major, minor, patch are numerics only
 export const compareVersions = function (possible, currentHighest) {
-  const versionRegex = /[\s.-]+/;
   const preReleaseLookup = { "alpha": 1, "beta": 2, "rc": 3};
+  const versionRegex = /[\s.-]+/;
 
+  let result = "";
   let possibleParts = possible.split(versionRegex);
   let currentHighestParts = currentHighest.split(versionRegex);
 
   // major
-  if (parseInt(possibleParts[0]) > parseInt(currentHighestParts[0])) {
-    return possible;
-  }
+  result = compareVersionInts(possibleParts, possible, currentHighestParts, currentHighest, 0);
+  if (result != "") { return result; }
 
-  // minor
-  if (parseInt(possibleParts[1]) > parseInt(currentHighestParts[1])) {
-    return possible;
-  }
+  result = compareVersionInts(possibleParts, possible, currentHighestParts, currentHighest, 1);
+  if (result != "") { return result; }
 
-  // patch
-  if (parseInt(possibleParts[2]) > parseInt(currentHighestParts[2])) {
-    return possible;
-  }
+  result = compareVersionInts(possibleParts, possible, currentHighestParts, currentHighest, 2);
+  if (result != "") { return result; }
 
   // if we need to comparate pre-release versions
-  if (possibleParts.length > 2) {
-    if (currentHighestParts.length > 2 &&
-      preReleaseLookup[possibleParts[3]] > preReleaseLookup[currentHighestParts[3]]) {
+  if (currentHighestParts.length > 3) {
+    if (possibleParts.length == 3 ||
+      (possibleParts.length > 3 && preReleaseLookup[possibleParts[3]] > preReleaseLookup[currentHighestParts[3]])) {
        return possible;
     } // else return currentHighest because pre-release is lower than official
-  }
-
-  // current highest is a pre-release while new possible is not
-  if (currentHighestParts.length > 2) {
-    return possible;
   }
 
   return currentHighest;
 }
 
-
+const compareVersionInts = function (leftArr, leftVal, rightArr, rightVal, index) {
+  if (parseInt(leftArr[index]) > parseInt(rightArr[index])) {
+    return leftVal;
+  } else if (parseInt(leftArr[index]) < parseInt(rightArr[index])) {
+    return rightVal;
+  } else {
+    return "";
+  }
+}
