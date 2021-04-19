@@ -2,6 +2,7 @@ import * as getPort from 'get-port';
 import got from 'got';
 import { Server } from 'http';
 import { createApp } from '../src/app';
+import { NPMPackage } from '../src/types';
 import { evaluateRule, compareVersions, isVersionAcceptable } from '../src/package';
 
 describe('/package/:name/:version endpoint', () => {
@@ -61,7 +62,7 @@ describe('/package/:name/:version endpoint', () => {
             "version": "15.7.2",
             "dependencies": {
               "loose-envify":  {
-                "target": "^1.1.0",
+                "target": "^1.4.0",
                 "version": "1.4.0",
                 "dependencies": {
                   "js-tokens": {
@@ -78,7 +79,7 @@ describe('/package/:name/:version endpoint', () => {
               },
               "react-is": {
                 "target": "^16.8.1",
-                "version": "16.8.6",
+                "version": "16.13.1",
                 "dependencies": {}
               }
             },
@@ -86,6 +87,33 @@ describe('/package/:name/:version endpoint', () => {
         }
     });
   });
+});
+
+describe('evaluateRule function', () => {
+
+  it('selects the latest possible version', () => {
+    //js-tokens check
+    const npmPackage: NPMPackage = {
+      name: "js-tokens",
+      description: "js-tokens",
+      "dist-tags": {
+        "latest": "6.0.0"
+      },
+      "versions": {
+        '0.1.0': {name: "js-tokens", version: "0.1.0"},
+        '2.0.0': {name: "js-tokens", version: "2.0.0"},
+        '3.0.0': {name: "js-tokens", version: "3.0.0"},
+        '3.0.2': {name: "js-tokens", version: "3.0.2"},
+        '4.0.0': {name: "js-tokens", version: "4.0.0"},
+        '5.0.0': {name: "js-tokens", version: "5.0.0"},
+        '6.0.0': {name: "js-tokens", version: "6.0.0"}
+      }
+    };
+
+    let rule = "^3.0.0 || ^4.0.0";
+
+    expect(evaluateRule(rule, npmPackage)).toEqual("4.0.0");
+  })
 });
 
 describe ('compareVersions function', () => {

@@ -9,9 +9,20 @@ export const getPackage: RequestHandler = async function (req, res, next) {
   const { name, version } = req.params;
 
   try {
-    const initialDependencies = (await queryNpmSource(name)).versions[version].dependencies;
+    const npmRoot = (await queryNpmSource(name));
+    const initialDependencies = npmRoot.versions[version].dependencies;
 
-    const dependencies = constructDependencyTree(initialDependencies);
+    // console.log("Initial Dependencies: " + initialDependencies);
+    // console.log("queried initial request: " + npmRoot.name);
+
+    let dependencies;
+    if (initialDependencies != undefined && initialDependencies != null) {
+      dependencies = (await constructDependencyTree(initialDependencies));
+    } else {
+      dependencies = initialDependencies;
+    }
+
+    // console.log("JSON blob result: " + JSON.stringify({ name, version, dependencies }));
     return res.status(200).json({ name, version, dependencies });
   } catch (error) {
     return next(error);
@@ -23,6 +34,7 @@ export const queryNpmSource = async function (name) {
     `https://registry.npmjs.org/${name}`,
   ).json();
 
+  //console.log("queried NpmSource Request successful: " + npmPackage.name);
   return npmPackage;
 }
 
@@ -32,34 +44,35 @@ export const queryNpmSource = async function (name) {
 //       would hang the current algorithm and would need additional checks
 //       to validate continuing tree construction.
 //       Implementing a "seen" cache of subtrees would allow early termination in these cases.
-export const constructDependencyTree = function (dependencies) {
+export const constructDependencyTree = async function (dependencies) {
   let possibleVersions;
   let target;
-  let npmPackage;
+  let npmPackage: NPMPackage;
+  let results = dependencies
 
-  for (let [key, value] of Object.entries(dependencies)) {
-    npmPackage = queryNpmSource(key);
+  for (let [key, value] of Object.entries(results)) {
+    npmPackage =  (await queryNpmSource(key));
     possibleVersions = npmPackage.versions;
     target = evaluateRule(value, npmPackage);
 
-    dependencies[key] = {
-      "rule": value,
-      "target": target,
+    results[key] = {
+      "target": value,
+      "version": target,
       "dependencies": {}
     }
 
-    console.log("Key: " + key + ", Rule: " + value + ", Target Version: " + target);
+    // console.log("Key: " + key + ", Rule: " + value + ", Target Version: " + target);
+    // console.log("Dependencies?: " + possibleVersions[target].dependencies);
 
     // Possibility to optimize via a lookup for seen rules/versions here
     // not every subtree will have dependencies
     if (possibleVersions[target].dependencies != null &&
-      possibleVersions[target].dependencies != NaN &&
       possibleVersions[target].dependencies != undefined) {
-      dependencies[key].dependencies = constructDependencyTree(possibleVersions[target].dependencies);
+      results[key].dependencies = (await constructDependencyTree(possibleVersions[target].dependencies));
     }
   }
 
-  return dependencies;
+  return results;
 }
 
 // Handling additional checks such as || in defined rule
@@ -98,15 +111,22 @@ export const evaluateRule = function (rule, npmPackage) {
     matcher = rule;
   }
 
-  for (let key in versions.keys()) {
-    if (isVersionAcceptable(matcher, key)){
+  //console.log("Rule used: " + matcher);
+  //console.log("Versions object" + Object.keys(versions));
+  //console.log("Versions available: " + versions.entries());
+
+  Object.keys(versions).forEach(key => {
+    //console.log("version tested: " + key);
+
+    if (isVersionAcceptable(matcher, key)) {
+      //console.log("Found match: " + key);
       if (target == "") {
         target = key;
       } else {
         target = compareVersions(key, target);
       }
     }
-  }
+  });
 
   return target;
 }
@@ -165,7 +185,7 @@ export const isVersionAcceptable = function (matcher, version) {
       } else { // any value works
         return true;
       }
-    } else if (parseInt(matcherParts[i]) > parseInt(versionParts[i])) {
+    } else if (parseInt(matcherParts[i]) != parseInt(versionParts[i])) {
       return false;
     } else {
       // console.log("vaild version part, continuing: " + versionParts[i]);
