@@ -106,6 +106,14 @@ Version comparison checks:
 prerelease comparisons:
   alpha < beta < rc
 
+
+### Results
+
+With more time to plan on solving some of the optimization problems, I believe I could make this code
+production ready, but it would not be production quality right now.
+
+I am a novice when it comes to Javascript/Typescript so working with some features was a little difficult.
+
 ## Expected change
 New tree-based result would look from the command:
 
